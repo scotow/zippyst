@@ -1,15 +1,21 @@
+use std::env::args;
+// use std::error::Error;
+use url::{Url};
+
 use scraper::{Html, Selector};
 use regex::Regex;
 use percent_encoding::percent_decode_str;
-use mexprp::Term;
+use minicalc::compute;
 
-const GILETTE_URL: &str = "https://www3.zippyshare.com/v/CDCi2wVT/file.html";
+// const GILETTE_URL: &str = "https://www3.zippyshare.com/v/CDCi2wVT/file.html";
 
 fn main() {
-    direct_link(GILETTE_URL);
+    for link in args().skip(1) {
+        println!("{}", direct_link(&link));
+    }
 }
 
-fn direct_link(url: &str) -> String {
+fn direct_link(url: &String) -> String {
     let body = reqwest::get(url).unwrap().text().unwrap();
 
     let document = Html::parse_document(&body);
@@ -21,14 +27,16 @@ fn direct_link(url: &str) -> String {
         .collect::<Vec<_>>()[0]
         .inner_html();
 
-    let re = Regex::new(r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/" \+ \(([\d\(\)+\-*/% ]+)\) \+ "/([/\w%.]+)";"#).unwrap();
+    let re = Regex::new(r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/" \+ \(([\d+% ]+)\) \+ "/([/\w%.]+)";"#).unwrap();
     let groups = re.captures(script_content.as_str()).unwrap();
 
+    let domain = Url::parse(url).unwrap().host_str().unwrap().to_owned();
     let key = &groups[1];
-    let file_name = percent_decode_str(&groups[3]).decode_utf8().unwrap();
-    let secret: f64 = Term::parse(&groups[2]).unwrap().eval().unwrap().unwrap_single();
+    let file_name_encoded = &groups[3];
+    // let file_name = percent_decode_str(file_name_encoded).decode_utf8().unwrap();
+    let secret = compute(&groups[2]).unwrap();
 
-    println!("{}, {}, {}", key, secret, file_name);
+    //println!("{}, {}, {}, {}", domain, key, secret, file_name);
 
-    String::from("OK")
+    format!("https://{}/d/{}/{}/{}", domain, key, secret, file_name_encoded)
 }
