@@ -4,7 +4,7 @@ use url::{Url};
 
 use scraper::{Html, Selector};
 use regex::Regex;
-use percent_encoding::percent_decode_str;
+// use percent_encoding::percent_decode_str;
 use minicalc::compute;
 
 // const GILETTE_URL: &str = "https://www3.zippyshare.com/v/CDCi2wVT/file.html";
@@ -27,7 +27,7 @@ fn direct_link(url: &String) -> String {
         .collect::<Vec<_>>()[0]
         .inner_html();
 
-    let re = Regex::new(r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/" \+ \(([\d+% ]+)\) \+ "/([/\w%.]+)";"#).unwrap();
+    let re = Regex::new(r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/" \+ \(([\d+% ]+)\) \+ "/([/\w%.-]+)";"#).unwrap();
     let groups = re.captures(script_content.as_str()).unwrap();
 
     let domain = Url::parse(url).unwrap().host_str().unwrap().to_owned();
