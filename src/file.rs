@@ -4,6 +4,7 @@ use crate::error::Error;
 use url::{Url};
 use regex::Regex;
 
+use curl::easy::Easy;
 use minicalc::compute;
 use percent_encoding::percent_decode_str;
 use scraper::{Html, Selector};
@@ -19,18 +20,12 @@ impl File {
 
     pub fn get_information(&self) -> Result<Information, Box<dyn std::error::Error>> {
         let script_content: Result<String, Box<dyn std::error::Error>> = {
-            let body = reqwest::get(&self.origin)?.text()?;
-            let document = Html::parse_document(&body);
+            let page_content = fetch_content(&self.origin).unwrap();
+            let document = Html::parse_document(&page_content);
             let selector = Selector::parse("#lrbox .right script").map_err(|_| Error::InvalidSelector)?;
 
-            Ok(
-                document.select(&selector)
-                    .take(1)
-                    .collect::<Vec<_>>()[0]
-                    .inner_html()
-            )
+            Ok(document.select(&selector).nth(0).ok_or(Error::CannotFindScriptTag)?.inner_html())
         };
-
         // How to clean this?
         let script_content = script_content?;
 
@@ -66,8 +61,24 @@ impl File {
                 }
             )
         } else {
-            // Why do I have to use Box here? Shouldn't it be auto cast?
-            Err(Box::new(Error::ScriptNotMatching))
+            Err(Error::ScriptContentNotMatching.into())
         }
     }
+}
+
+fn fetch_content(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut data = Vec::new();
+    {
+        let mut handle = Easy::new();
+        handle.url(url).unwrap();
+
+        let mut transfer = handle.transfer();
+        transfer.write_function(|new_data| {
+            data.extend_from_slice(new_data);
+            Ok(new_data.len())
+        }).unwrap();
+        transfer.perform().unwrap();
+    }
+
+    Ok(String::from_utf8(data)?)
 }
