@@ -20,7 +20,7 @@ impl File {
 
     pub fn get_information(&self) -> Result<Information, Box<dyn std::error::Error>> {
         let script_content: Result<String, Box<dyn std::error::Error>> = {
-            let page_content = fetch_content(&self.origin).unwrap();
+            let page_content = fetch_content(&self.origin)?;
             let document = Html::parse_document(&page_content);
             let selector = Selector::parse("#lrbox .right script").map_err(|_| Error::InvalidSelector)?;
 
@@ -68,17 +68,21 @@ impl File {
 
 fn fetch_content(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut data = Vec::new();
-    {
+    let request: Result<(), Box<dyn std::error::Error>> = {
         let mut handle = Easy::new();
-        handle.url(url).unwrap();
+        handle.url(url)?;
 
         let mut transfer = handle.transfer();
         transfer.write_function(|new_data| {
             data.extend_from_slice(new_data);
             Ok(new_data.len())
-        }).unwrap();
-        transfer.perform().unwrap();
-    }
+        })?;
+        transfer.perform()?;
+
+        Ok(())
+    };
+    // How to clean this?
+    request?;
 
     Ok(String::from_utf8(data)?)
 }
