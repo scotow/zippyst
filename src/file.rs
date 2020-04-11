@@ -19,15 +19,13 @@ impl File {
     }
 
     pub fn get_information(&self) -> Result<Information, Box<dyn std::error::Error>> {
-        let script_content: Result<String, Box<dyn std::error::Error>> = {
+        let script_content  = {
             let page_content = fetch_content(&self.origin)?;
             let document = Html::parse_document(&page_content);
             let selector = Selector::parse("#lrbox .right script").map_err(|_| Error::InvalidSelector)?;
 
-            Ok(document.select(&selector).nth(0).ok_or(Error::CannotFindScriptTag)?.inner_html())
-        };
-        // How to clean this?
-        let script_content = script_content?;
+            Ok::<String, Error>(document.select(&selector).nth(0).ok_or(Error::CannotFindScriptTag)?.inner_html())
+        }?;
 
         let re1 = Regex::new(r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/"\s?\+\s?\(a \* b \+ c \+ d\)\s?\+\s?"/([/\w%.-]+)";"#)?;
         let re2 = Regex::new(r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/"\s?\+\s?\(([\d+% ]+)\)\s?\+\s?"/([/\w%.-]+)";"#)?;
@@ -68,7 +66,7 @@ impl File {
 
 fn fetch_content(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut data = Vec::new();
-    let request: Result<(), Box<dyn std::error::Error>> = {
+    {
         let mut handle = Easy::new();
         handle.url(url)?;
 
@@ -79,10 +77,8 @@ fn fetch_content(url: &str) -> Result<String, Box<dyn std::error::Error>> {
         })?;
         transfer.perform()?;
 
-        Ok(())
-    };
-    // How to clean this?
-    request?;
+        Ok::<(), Error>(())
+    }?;
 
     Ok(String::from_utf8(data)?)
 }
