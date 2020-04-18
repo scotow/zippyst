@@ -19,10 +19,9 @@ impl File {
         }
     }
 
-    pub fn get_information(&self) -> Result<Information, Box<dyn std::error::Error>> {
+    fn parse_information(&self, page_content: &str) -> Result<Information, Box<dyn std::error::Error>> {
         let script_content = {
-            let page_content = fetch_content(&self.origin)?;
-            let document = Html::parse_document(&page_content);
+            let document = Html::parse_document(page_content);
             let selector =
                 Selector::parse("#lrbox .right script").map_err(|_| Error::InvalidSelector)?;
 
@@ -84,13 +83,31 @@ impl File {
             Err(Error::ScriptContentNotMatching.into())
         }
     }
+
+    pub fn get_information(&self) -> Result<Information, Box<dyn std::error::Error>> {
+        let page_content= fetch_content(&self.origin, 0)?;
+        self.parse_information(&page_content)
+    }
+
+    pub fn get_information_retry(&self, retry: u16) -> Result<Information, Box<dyn std::error::Error>> {
+        let page_content= fetch_content(&self.origin, retry)?;
+        self.parse_information(&page_content)
+    }
 }
 
-fn fetch_content(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn fetch_content(url: &str, retry: u16) -> Result<String, Box<dyn std::error::Error>> {
     let resp = ureq::get(url).call();
     if resp.ok() {
         Ok(resp.into_string()?)
+    } else if resp.error() {
+        if retry > 0 {
+            fetch_content(url, retry - 1)
+        } else {
+            Err(resp.status_text().into())
+        }
+    } else if let Some(err) = resp.synthetic_error() {
+        Err(err.status_text().into())
     } else {
-        Err("invalid HTTP response".into())
+        Err("invalid HTTP call".into())
     }
 }
