@@ -7,17 +7,19 @@ pub enum Error {
     InvalidScriptContent,
     InvalidDomain,
     InvalidSelector,
-    CannotFindScriptTag
+    CannotFindScriptTag,
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Error::ScriptContentNotMatching => write!(f, "script not matching any known patterns"),
-            Error::InvalidScriptContent => write!(f, "script matched criteria but didn't find matching groups"),
+            Error::InvalidScriptContent => {
+                write!(f, "script matched criteria but didn't find matching groups")
+            }
             Error::InvalidDomain => write!(f, "invalid domain in origin URL"),
             Error::InvalidSelector => write!(f, "invalid CSS selector"),
-            Error::CannotFindScriptTag => write!(f, "cannot find script tag")
+            Error::CannotFindScriptTag => write!(f, "cannot find script tag"),
         }
     }
 }
@@ -29,7 +31,7 @@ impl error::Error for Error {
             Error::InvalidScriptContent => None,
             Error::InvalidDomain => None,
             Error::InvalidSelector => None,
-            Error::CannotFindScriptTag => None
+            Error::CannotFindScriptTag => None,
         }
     }
 }
