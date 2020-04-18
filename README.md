@@ -9,7 +9,7 @@ USAGE:
     zippyst LINK...
 ```
 
-### Example
+### Examples
 
 ```sh
 $ cargo run 'https://www3.zippyshare.com/v/CDCi2wVT/file.html'
