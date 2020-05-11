@@ -15,11 +15,14 @@ pub struct File {
 impl File {
     pub fn new(origin: &str) -> File {
         File {
-            origin: origin.into(),
+            origin: origin.to_string(),
         }
     }
 
-    fn parse_information(&self, page_content: &str) -> Result<Information, Box<dyn std::error::Error>> {
+    fn parse_information(
+        &self,
+        page_content: &str,
+    ) -> Result<Information, Box<dyn std::error::Error>> {
         let script_content = {
             let document = Html::parse_document(page_content);
             let selector =
@@ -85,12 +88,15 @@ impl File {
     }
 
     pub fn get_information(&self) -> Result<Information, Box<dyn std::error::Error>> {
-        let page_content= fetch_content(&self.origin, 0)?;
+        let page_content = fetch_content(&self.origin, 0)?;
         self.parse_information(&page_content)
     }
 
-    pub fn get_information_retry(&self, retry: u16) -> Result<Information, Box<dyn std::error::Error>> {
-        let page_content= fetch_content(&self.origin, retry)?;
+    pub fn get_information_retry(
+        &self,
+        retry: u16,
+    ) -> Result<Information, Box<dyn std::error::Error>> {
+        let page_content = fetch_content(&self.origin, retry)?;
         self.parse_information(&page_content)
     }
 }
