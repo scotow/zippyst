@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use crate::error::Error;
 use crate::info::Information;
 
@@ -43,6 +44,9 @@ impl File {
         let re2 = Regex::new(
             r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/"\s?\+\s?\(([\d+% ]+)\)\s?\+\s?"/([/\w%.-]+)";"#,
         )?;
+        let re3 = Regex::new(
+            r#"document.getElementById\('dlbutton'\)\.href = "/d/(\w+)/"\s?\+\s?\(([\w\d+\- ]+)\)\s?\+\s?"/([/\w%.-]+)";"#,
+        )?;
 
         if re1.is_match(&script_content) {
             let re_var = Regex::new(r#"var\s?a\s?=\s?(\d+)\s?%\s?900\s?;"#)?;
@@ -79,6 +83,27 @@ impl File {
                 ),
                 id: String::from(&groups[1]),
                 key: compute(&groups[2])?,
+                name: String::from(percent_decode_str(&groups[3]).decode_utf8()?),
+                encoded_name: String::from(&groups[3]),
+            })
+        } else if re3.is_match(&script_content) {
+            let re_var = Regex::new(r#"var\s?\w\s?=\s?(\d+)(?:\s?%\s?\d)?\s?;"#)?;            
+            let [n, b, z]: [i64; 3] = re_var
+                .captures_iter(&script_content)
+                .map(|groups| groups[1].parse::<i64>())
+                .collect::<Result<Vec<_>, _>>()?.try_into().map_err(|_| Error::InvalidScriptContent)?;
+
+            let groups = re3
+                .captures(&script_content)
+                .ok_or(Error::InvalidScriptContent)?;
+            Ok(Information {
+                domain: String::from(
+                    Url::parse(&self.origin)?
+                        .host_str()
+                        .ok_or(Error::InvalidDomain)?,
+                ),
+                id: String::from(&groups[1]),
+                key: n % 2 + b % 3 + z - 3,
                 name: String::from(percent_decode_str(&groups[3]).decode_utf8()?),
                 encoded_name: String::from(&groups[3]),
             })
