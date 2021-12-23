@@ -1,3 +1,4 @@
+#[cfg(feature = "fetch")]
 use std::str::{FromStr, Utf8Error};
 
 #[cfg(feature = "fetch")]
