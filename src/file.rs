@@ -1,10 +1,10 @@
-use hyper::{header, Body, Response};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str;
 
 use hyper::body::HttpBody;
 use hyper::client::Client;
+use hyper::{header, Body, Response};
 use hyper_tls::HttpsConnector;
 use lazy_static::lazy_static;
 use percent_encoding::percent_decode_str;
@@ -40,9 +40,11 @@ impl File {
                 )
                 .await
                 .map_err(|err| Error::ContentFetchingFailure { source: err })?;
-            
+
             if !(response.status().is_success() || response.status().is_redirection()) {
-                return Err(Error::InvalidStatusCode { code: response.status() });
+                return Err(Error::InvalidStatusCode {
+                    code: response.status(),
+                });
             }
             Ok(response)
         }
@@ -58,10 +60,12 @@ impl File {
                 .map_err(|_| Error::RedirectionFailure)?;
             response = fetch(location).await?;
         }
-        
+
         // Final response.
         if !response.status().is_success() {
-            return Err(Error::InvalidStatusCode { code: response.status() });
+            return Err(Error::InvalidStatusCode {
+                code: response.status(),
+            });
         }
 
         let mut page_content = Vec::new();
@@ -81,15 +85,15 @@ impl File {
         let script_content = {
             let document = Html::parse_document(page_content);
             let selector =
-                Selector::parse("#lrbox .right script").map_err(|_| Error::InvalidCssSelector)?;
+                Selector::parse("#lrbox script").map_err(|_| Error::InvalidCssSelector)?;
 
-            Ok::<String, Error>(
-                document
-                    .select(&selector)
-                    .nth(0)
-                    .ok_or(Error::ScriptNotFound)?
-                    .inner_html(),
-            )
+            Ok(document
+                .select(&selector)
+                .find_map(|elem| {
+                    let html = elem.inner_html();
+                    LINK_GENERATOR_REGEX.is_match(&html).then(|| html)
+                })
+                .ok_or(Error::ScriptNotFound)?)
         }?;
 
         let vars = VARIABLE_REGEX
