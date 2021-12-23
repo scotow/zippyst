@@ -2,9 +2,13 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str;
 
+#[cfg(feature = "fetch")]
 use hyper::body::HttpBody;
+#[cfg(feature = "fetch")]
 use hyper::client::Client;
+#[cfg(feature = "fetch")]
 use hyper::{header, Body, Response};
+#[cfg(feature = "fetch")]
 use hyper_tls::HttpsConnector;
 use lazy_static::lazy_static;
 use percent_encoding::percent_decode_str;
@@ -29,6 +33,7 @@ pub struct File {
 }
 
 impl File {
+    #[cfg(feature = "fetch")]
     pub async fn fetch_and_parse(url: &str) -> Result<Self, Error> {
         async fn fetch(url: &str) -> Result<Response<Body>, Error> {
             let https = HttpsConnector::new();

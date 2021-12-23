@@ -5,5 +5,5 @@ authors = ["Scotow <contact@scotow.com>"]
 edition = "2021"
 
 [dependencies]
-zippyst = { path = "../lib" }
+zippyst = { path = "../lib", features = ["fetch"] }
 tokio = { version = "1.15.0", default-features = false, features = ["macros", "rt-multi-thread"] }
