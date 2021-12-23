@@ -1,3 +1,4 @@
+use hyper::{header, Body, Response};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str;
@@ -29,16 +30,40 @@ pub struct File {
 
 impl File {
     pub async fn fetch_and_parse(url: &str) -> Result<Self, Error> {
-        let https = HttpsConnector::new();
-        let client = Client::builder().build::<_, hyper::Body>(https);
-        let mut response = client
-            .get(
-                url.parse()
-                    .map_err(|err| Error::InvalidUrl { source: err })?,
-            )
-            .await
-            .map_err(|err| Error::ContentFetchingFailure { source: err })?;
+        async fn fetch(url: &str) -> Result<Response<Body>, Error> {
+            let https = HttpsConnector::new();
+            let client = Client::builder().build::<_, hyper::Body>(https);
+            let response = client
+                .get(
+                    url.parse()
+                        .map_err(|err| Error::InvalidUrl { source: err })?,
+                )
+                .await
+                .map_err(|err| Error::ContentFetchingFailure { source: err })?;
+            
+            if !(response.status().is_success() || response.status().is_redirection()) {
+                return Err(Error::InvalidStatusCode { code: response.status() });
+            }
+            Ok(response)
+        }
+
+        let mut response = fetch(url).await?;
+        // Follow only one redirection.
+        if response.status().is_redirection() {
+            let location = response
+                .headers()
+                .get(header::LOCATION)
+                .ok_or(Error::RedirectionFailure)?
+                .to_str()
+                .map_err(|_| Error::RedirectionFailure)?;
+            response = fetch(location).await?;
+        }
         
+        // Final response.
+        if !response.status().is_success() {
+            return Err(Error::InvalidStatusCode { code: response.status() });
+        }
+
         let mut page_content = Vec::new();
         while let Some(next) = response.data().await {
             let chunk = next.map_err(|err| Error::ContentStreamingFailure { source: err })?;

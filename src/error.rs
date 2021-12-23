@@ -1,6 +1,6 @@
 use std::str::{FromStr, Utf8Error};
 
-use hyper::Uri;
+use hyper::{StatusCode, Uri};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -9,6 +9,10 @@ pub enum Error {
     InvalidUrl { source: <Uri as FromStr>::Err },
     #[error("failed to fetch page content")]
     ContentFetchingFailure { source: hyper::Error },
+    #[error("invalid status code")]
+    InvalidStatusCode { code: StatusCode },
+    #[error("failed to follow redirection")]
+    RedirectionFailure,
     #[error("failed to stream page content")]
     ContentStreamingFailure { source: hyper::Error },
     #[error("page content is not valid UTF-8")]
