@@ -3,10 +3,15 @@ use std::env::args;
 use zippyst::Error;
 use zippyst::File;
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() -> Result<(), Error> {
-    for link in args().skip(1) {
-        println!("{}", File::fetch_and_parse(&link).await?);
+    for file in args()
+        .skip(1)
+        .map(|url| tokio::spawn(async move { File::fetch_and_parse(&url).await }))
+        .collect::<Vec<_>>()
+    {
+        println!("{}", file.await.unwrap()?);
     }
+
     Ok(())
 }
