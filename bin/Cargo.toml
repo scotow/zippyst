@@ -1,0 +1,9 @@
+[package]
+name = "zippyst-cmd"
+version = "0.1.0"
+authors = ["Scotow <contact@scotow.com>"]
+edition = "2021"
+
+[dependencies]
+zippyst = { path = "../lib" }
+tokio = { version = "1.15.0", default-features = false, features = ["macros", "rt-multi-thread"] }
