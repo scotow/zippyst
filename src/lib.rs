@@ -1,3 +1,4 @@
-pub mod error;
-pub mod file;
-pub mod info;
+mod error;
+mod file;
+
+pub use {error::Error, file::File};
