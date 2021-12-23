@@ -1,5 +1,8 @@
 # zippyst
 
+[![crates.io](https://img.shields.io/crates/v/zippyst.svg)](https://crates.io/crates/zippyst)
+[![Documentation](https://docs.rs/zippyst/badge.svg)](https://docs.rs/zippyst)
+
 Extract direct download link from a Zippyshare page. 
 
 ### Usage
@@ -11,6 +14,8 @@ USAGE:
 
 ### Examples
 
+The links bellow were used to demonstrate the usage of the command. They may have expired.
+
 ```sh
 $ cargo run 'https://www3.zippyshare.com/v/CDCi2wVT/file.html'
 https://www3.zippyshare.com/d/CDCi2wVT/43392/Gillette%20%2c%20the%20best%20a%20man%20can%20get.wav
@@ -20,7 +25,7 @@ https://www20.zippyshare.com/d/oRFjDgWy/40318/dev-v2.0.json
 https://www20.zippyshare.com/d/GTU4Fiku/36115/run.js
 https://www20.zippyshare.com/d/QW589nBO/26959/Gillette%20%2c%20the%20best%20a%20man%20can%20get.wav.download.zip
 
-$ cat links.txt | xargs zippyst
+$ xargs -a links.txt zippyst
 https://www20.zippyshare.com/d/oRFjDgWy/40318/dev-v2.0.json
 https://www20.zippyshare.com/d/GTU4Fiku/36115/run.js
 https://www20.zippyshare.com/d/QW589nBO/26959/Gillette%20%2c%20the%20best%20a%20man%20can%20get.wav.download.zip
@@ -28,4 +33,4 @@ https://www20.zippyshare.com/d/QW589nBO/26959/Gillette%20%2c%20the%20best%20a%20
 
 ### Algorithm changes
 
-If you find any link that may not work with this project, please open an issue to let me know, so I can (try to) support the new algorithm.
+If you find any link that may not work with this project, please open an issue to let me know, so I might try to support the new algorithm.
