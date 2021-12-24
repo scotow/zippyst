@@ -169,3 +169,42 @@ impl Display for File {
         write!(f, "{}", self.link_with_encoded_name())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use hyper::body::HttpBody;
+    use hyper::Client;
+    use hyper_tls::HttpsConnector;
+    use md5::Context;
+    use regex::Regex;
+
+    #[tokio::test]
+    async fn file_link() {
+        let file = super::File::fetch_and_parse("https://www3.zippyshare.com/v/CDCi2wVT/file.html").await.unwrap();
+        assert!(Regex::new(r#"https://(?:w+\d+\.)?zippyshare\.com/d/[\w\d]+/\d+/DOWNLOAD"#).unwrap().is_match(&file.link()));
+    }
+    
+    #[tokio::test]
+    async fn file_checksum() {
+        let file = super::File::fetch_and_parse("https://www3.zippyshare.com/v/CDCi2wVT/file.html")
+            .await
+            .unwrap();
+
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        let mut response = client
+            .get(file.link_with_encoded_name().parse().unwrap())
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+
+        let mut md5 = Context::new();
+        while let Some(next) = response.data().await {
+            md5.consume(&next.unwrap());
+        }
+        assert_eq!(
+            md5.compute().0,
+            [111, 29, 61, 152, 64, 180, 174, 33, 189, 191, 48, 97, 160, 9, 91, 63],
+        );
+    }
+}
