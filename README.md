@@ -2,8 +2,9 @@
 
 [![crates.io](https://img.shields.io/crates/v/zippyst.svg)](https://crates.io/crates/zippyst)
 [![Documentation](https://docs.rs/zippyst/badge.svg)](https://docs.rs/zippyst)
+![Test](https://github.com/scotow/zippyst/actions/workflows/tests.yml/badge.svg)
 
-Extract direct download link from a Zippyshare page. 
+Extract direct download link from a [zippyshare.com](https://www.zippyshare.com) page. 
 
 ### Usage
 
