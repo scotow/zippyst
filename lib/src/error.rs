@@ -1,15 +1,17 @@
 #[cfg(feature = "fetch")]
-use std::str::{FromStr, Utf8Error};
+use std::str::Utf8Error;
 
+use hyper::http::uri::InvalidUri;
 #[cfg(feature = "fetch")]
-use hyper::{StatusCode, Uri};
+use hyper::StatusCode;
 use thiserror::Error;
+use tinyexpr::error::TinyExprError;
 
 #[derive(Error, Debug)]
 pub enum Error {
     #[cfg(feature = "fetch")]
     #[error("invalid url")]
-    InvalidUrl { source: <Uri as FromStr>::Err },
+    InvalidUrl { source: InvalidUri },
     #[cfg(feature = "fetch")]
     #[error("failed to fetch page content")]
     ContentFetchingFailure { source: hyper::Error },
@@ -24,7 +26,7 @@ pub enum Error {
     ContentStreamingFailure { source: hyper::Error },
     #[cfg(feature = "fetch")]
     #[error("page content is not valid UTF-8")]
-    InvalidUtf8Content { source: Utf8Error },
+    InvalidUtf8PageContent { source: Utf8Error },
     #[error("invalid CSS selector")]
     InvalidCssSelector,
     #[error("cannot find script tag")]
@@ -32,13 +34,17 @@ pub enum Error {
     #[error("failed to extract variable")]
     VariableExtractionFailure,
     #[error("failed to compute variable")]
-    VariableComputationFailure {
-        source: tinyexpr::error::TinyExprError,
-    },
+    VariableComputationFailure { source: TinyExprError },
     #[error("failed to extract link generator")]
     LinkGeneratorExtractionFailure,
     #[error("failed to compute link key")]
-    LinkComputationFailure {
-        source: tinyexpr::error::TinyExprError,
-    },
+    LinkComputationFailure { source: TinyExprError },
+    #[error("failed to extract domain name")]
+    DomainExtractionFailure,
+    #[error("failed to extract file id")]
+    FileIdExtractionFailure,
+    #[error("failed to extract filename")]
+    FilenameExtractionFailure,
+    #[error("filename is not valid UTF-8")]
+    InvalidUtf8Filename { source: Utf8Error },
 }

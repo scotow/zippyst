@@ -6,6 +6,7 @@ use std::str;
 use hyper::body::HttpBody;
 #[cfg(feature = "fetch")]
 use hyper::client::Client;
+use hyper::http::uri::Uri;
 #[cfg(feature = "fetch")]
 use hyper::{header, Body, Response};
 #[cfg(feature = "fetch")]
@@ -14,7 +15,6 @@ use lazy_static::lazy_static;
 use percent_encoding::percent_decode_str;
 use regex::Regex;
 use scraper::{Html, Selector};
-use url::Url;
 
 use crate::error::Error;
 
@@ -34,15 +34,12 @@ pub struct File {
 
 impl File {
     #[cfg(feature = "fetch")]
-    pub async fn fetch_and_parse(url: &str) -> Result<Self, Error> {
-        async fn fetch(url: &str) -> Result<Response<Body>, Error> {
+    pub async fn fetch_and_parse(uri: Uri) -> Result<Self, Error> {
+        async fn fetch(uri: Uri) -> Result<Response<Body>, Error> {
             let https = HttpsConnector::new();
             let client = Client::builder().build::<_, hyper::Body>(https);
             let response = client
-                .get(
-                    url.parse()
-                        .map_err(|err| Error::InvalidUrl { source: err })?,
-                )
+                .get(uri)
                 .await
                 .map_err(|err| Error::ContentFetchingFailure { source: err })?;
 
@@ -54,7 +51,7 @@ impl File {
             Ok(response)
         }
 
-        let mut response = fetch(url).await?;
+        let mut response = fetch(uri.clone()).await?;
         // Follow only one redirection.
         if response.status().is_redirection() {
             let location = response
@@ -62,7 +59,9 @@ impl File {
                 .get(header::LOCATION)
                 .ok_or(Error::RedirectionFailure)?
                 .to_str()
-                .map_err(|_| Error::RedirectionFailure)?;
+                .map_err(|_| Error::RedirectionFailure)?
+                .parse()
+                .map_err(|err| Error::InvalidUrl { source: err })?;
             response = fetch(location).await?;
         }
 
@@ -80,13 +79,13 @@ impl File {
         }
 
         Self::parse(
-            url,
+            &uri,
             str::from_utf8(&page_content)
-                .map_err(|err| Error::InvalidUtf8Content { source: err })?,
+                .map_err(|err| Error::InvalidUtf8PageContent { source: err })?,
         )
     }
 
-    pub fn parse(url: &str, page_content: &str) -> Result<Self, Error> {
+    pub fn parse(uri: &Uri, page_content: &str) -> Result<Self, Error> {
         let script_content = {
             let document = Html::parse_document(page_content);
             let selector =
@@ -138,14 +137,27 @@ impl File {
             .map_err(|err| Error::LinkComputationFailure { source: err })? as i64;
 
         Ok(Self {
-            domain: Url::parse(url).unwrap().host_str().unwrap().to_owned(),
-            id: groups.get(1).unwrap().as_str().to_owned(),
+            domain: uri.host().ok_or(Error::DomainExtractionFailure)?.to_owned(),
+            id: groups
+                .get(1)
+                .ok_or(Error::FileIdExtractionFailure)?
+                .as_str()
+                .to_owned(),
             key,
-            name: percent_decode_str(groups.get(3).unwrap().as_str())
-                .decode_utf8()
-                .unwrap()
-                .to_string(),
-            encoded_name: groups.get(3).unwrap().as_str().to_owned(),
+            name: percent_decode_str(
+                groups
+                    .get(3)
+                    .ok_or(Error::FilenameExtractionFailure)?
+                    .as_str(),
+            )
+            .decode_utf8()
+            .map_err(|err| Error::InvalidUtf8Filename { source: err })?
+            .to_string(),
+            encoded_name: groups
+                .get(3)
+                .ok_or(Error::FilenameExtractionFailure)?
+                .as_str()
+                .to_owned(),
         })
     }
 
@@ -180,15 +192,29 @@ mod tests {
 
     #[tokio::test]
     async fn file_link() {
-        let file = super::File::fetch_and_parse("https://www3.zippyshare.com/v/CDCi2wVT/file.html").await.unwrap();
-        assert!(Regex::new(r#"https://(?:w+\d+\.)?zippyshare\.com/d/[\w\d]+/\d+/DOWNLOAD"#).unwrap().is_match(&file.link()));
+        let file = super::File::fetch_and_parse(
+            "https://www3.zippyshare.com/v/CDCi2wVT/file.html"
+                .parse()
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert!(
+            Regex::new(r#"https://(?:w+\d+\.)?zippyshare\.com/d/[\w\d]+/\d+/DOWNLOAD"#)
+                .unwrap()
+                .is_match(&file.link())
+        );
     }
-    
+
     #[tokio::test]
     async fn file_checksum() {
-        let file = super::File::fetch_and_parse("https://www3.zippyshare.com/v/CDCi2wVT/file.html")
-            .await
-            .unwrap();
+        let file = super::File::fetch_and_parse(
+            "https://www3.zippyshare.com/v/CDCi2wVT/file.html"
+                .parse()
+                .unwrap(),
+        )
+        .await
+        .unwrap();
 
         let https = HttpsConnector::new();
         let client = Client::builder().build::<_, hyper::Body>(https);

@@ -1,4 +1,4 @@
 mod error;
 mod file;
 
-pub use {error::Error, file::File};
+pub use {error::Error, file::File, hyper::Uri};
