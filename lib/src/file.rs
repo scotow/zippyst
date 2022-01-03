@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str;
 
+use http::Uri;
 #[cfg(feature = "fetch")]
 use hyper::body::HttpBody;
 #[cfg(feature = "fetch")]
 use hyper::client::Client;
-use hyper::http::uri::Uri;
 #[cfg(feature = "fetch")]
 use hyper::{header, Body, Response};
 #[cfg(feature = "fetch")]
@@ -14,11 +14,11 @@ use hyper_tls::HttpsConnector;
 use lazy_static::lazy_static;
 use percent_encoding::percent_decode_str;
 use regex::Regex;
-use scraper::{Html, Selector};
 
 use crate::error::Error;
 
 lazy_static! {
+    static ref SCRIPT_REGEX: Regex = Regex::new(r#"(?s)<script type="text/javascript">(.+?)</script>"#).expect("cannot build script extracting regex");
     static ref VARIABLE_REGEX: Regex = Regex::new(r#"var\s*(\w+)\s*=\s*([\d+\-*/%]+);?"#).expect("cannot build variable matching regex");
     static ref LINK_GENERATOR_REGEX: Regex = Regex::new(r#"document\.getElementById\('dlbutton'\)\.href = "/d/(\w+)/"\s*\+\s*([\d\w\s+\-*/%()]+)\s*\+"/([/\w%.-]+)";?"#).expect("cannot build link generator regex");
 }
@@ -87,21 +87,19 @@ impl File {
 
     pub fn parse(uri: &Uri, page_content: &str) -> Result<Self, Error> {
         let script_content = {
-            let document = Html::parse_document(page_content);
-            let selector =
-                Selector::parse("#lrbox script").map_err(|_| Error::InvalidCssSelector)?;
-
-            Ok(document
-                .select(&selector)
-                .find_map(|elem| {
-                    let html = elem.inner_html();
-                    LINK_GENERATOR_REGEX.is_match(&html).then(|| html)
-                })
-                .ok_or(Error::ScriptNotFound)?)
+            let mut content = Err(Error::ScriptNotFound);
+            for cap in SCRIPT_REGEX.captures_iter(page_content) {
+                let inner = cap.get(1).ok_or(Error::ScriptNotFound)?.as_str();
+                if inner.contains("document.getElementById('dlbutton')") {
+                    content = Ok(inner);
+                    break;
+                }
+            }
+            content
         }?;
 
         let vars = VARIABLE_REGEX
-            .captures_iter(&script_content)
+            .captures_iter(script_content)
             .map(|groups| {
                 Ok((
                     groups
@@ -123,7 +121,7 @@ impl File {
             .collect::<HashMap<_, _>>();
 
         let groups = LINK_GENERATOR_REGEX
-            .captures(&script_content)
+            .captures(script_content)
             .ok_or(Error::LinkGeneratorExtractionFailure)?;
         let expression = vars.iter().fold(
             groups

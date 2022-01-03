@@ -1,7 +1,7 @@
-#[cfg(feature = "fetch")]
 use std::str::Utf8Error;
 
-use hyper::http::uri::InvalidUri;
+#[cfg(feature = "fetch")]
+use http::uri::InvalidUri;
 #[cfg(feature = "fetch")]
 use hyper::StatusCode;
 use thiserror::Error;
@@ -27,8 +27,6 @@ pub enum Error {
     #[cfg(feature = "fetch")]
     #[error("page content is not valid UTF-8")]
     InvalidUtf8PageContent { source: Utf8Error },
-    #[error("invalid CSS selector")]
-    InvalidCssSelector,
     #[error("cannot find script tag")]
     ScriptNotFound,
     #[error("failed to extract variable")]
