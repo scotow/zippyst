@@ -20,7 +20,7 @@ use crate::error::Error;
 lazy_static! {
     static ref SCRIPT_REGEX: Regex = Regex::new(r#"(?s)<script type="text/javascript">(.+?)</script>"#).expect("cannot build script extracting regex");
     static ref VARIABLE_REGEX: Regex = Regex::new(r#"var\s*(\w+)\s*=\s*([\d+\-*/%]+);?"#).expect("cannot build variable matching regex");
-    static ref LINK_GENERATOR_REGEX: Regex = Regex::new(r#"document\.getElementById\('dlbutton'\)\.href = "/d/(\w+)/"\s*\+\s*([\d\w\s+\-*/%()]+)\s*\+"/([/\w%.-]+)";?"#).expect("cannot build link generator regex");
+    static ref LINK_GENERATOR_REGEX: Regex = Regex::new(r#"document\.getElementById\('dlbutton'\)\.href\s*=\s*"/d/(\w+)/"\s*\+\s*([\d\w\s+\-*/%()]+?)\s*\+\s*"/([/\w%.-]+)";?"#).expect("cannot build link generator regex");
 }
 
 #[derive(Clone, Debug)]
