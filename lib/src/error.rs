@@ -5,7 +5,6 @@ use http::uri::InvalidUri;
 #[cfg(feature = "fetch")]
 use hyper::StatusCode;
 use thiserror::Error;
-use tinyexpr::error::TinyExprError;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -29,18 +28,16 @@ pub enum Error {
     InvalidUtf8PageContent { source: Utf8Error },
     #[error("cannot find script tag")]
     ScriptNotFound,
-    #[error("failed to extract variable")]
-    VariableExtractionFailure,
-    #[error("failed to compute variable")]
-    VariableComputationFailure { source: TinyExprError },
     #[error("failed to extract link generator")]
     LinkGeneratorExtractionFailure,
     #[error("failed to compute link key")]
-    LinkComputationFailure { source: TinyExprError },
+    LinkComputationFailure,
     #[error("failed to extract domain name")]
     DomainExtractionFailure,
     #[error("failed to extract file id")]
     FileIdExtractionFailure,
+    #[error("failed to extract file key")]
+    FileKeyExtractionFailure,
     #[error("failed to extract filename")]
     FilenameExtractionFailure,
     #[error("filename is not valid UTF-8")]

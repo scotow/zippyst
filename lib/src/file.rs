@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use boa::Context;
 use std::fmt::{Display, Formatter};
 use std::str;
 
@@ -18,9 +18,13 @@ use regex::Regex;
 use crate::error::Error;
 
 lazy_static! {
-    static ref SCRIPT_REGEX: Regex = Regex::new(r#"(?s)<script type="text/javascript">(.+?)</script>"#).expect("cannot build script extracting regex");
-    static ref VARIABLE_REGEX: Regex = Regex::new(r#"var\s*(\w+)\s*=\s*([\d+\-*/%]+);?"#).expect("cannot build variable matching regex");
-    static ref LINK_GENERATOR_REGEX: Regex = Regex::new(r#"document\.getElementById\('dlbutton'\)\.href\s*=\s*"/d/(\w+)/"\s*\+\s*([\d\w\s+\-*/%()]+?)\s*\+\s*"/([/\w%.-]+)";?"#).expect("cannot build link generator regex");
+    static ref SCRIPT_REGEX: Regex =
+        Regex::new(r#"(?s)<script type="text/javascript">(.+?)</script>"#)
+            .expect("cannot build script extracting regex");
+    static ref VARIABLE_REGEX: Regex = Regex::new(r#"var\s*(\w+)\s*=\s*([\d+\-*/%]+);?"#)
+        .expect("cannot build variable matching regex");
+    static ref PATH_REGEX: Regex =
+        Regex::new(r#"/d/(\w+)/(\d+)/([/\w%.-]+)"#).expect("cannot build uri regex");
 }
 
 #[derive(Clone, Debug)]
@@ -98,41 +102,24 @@ impl File {
             content
         }?;
 
-        let vars = VARIABLE_REGEX
-            .captures_iter(script_content)
-            .map(|groups| {
-                Ok((
-                    groups
-                        .get(1)
-                        .map(|g| g.as_str())
-                        .ok_or(Error::VariableExtractionFailure)?,
-                    tinyexpr::interp(
-                        groups
-                            .get(2)
-                            .ok_or(Error::VariableExtractionFailure)?
-                            .as_str(),
-                    )
-                    .map_err(|err| Error::VariableComputationFailure { source: err })?
-                        as i64,
-                ))
-            })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .collect::<HashMap<_, _>>();
-
-        let groups = LINK_GENERATOR_REGEX
-            .captures(script_content)
-            .ok_or(Error::LinkGeneratorExtractionFailure)?;
-        let expression = vars.iter().fold(
-            groups
-                .get(2)
-                .ok_or(Error::LinkGeneratorExtractionFailure)?
-                .as_str()
-                .to_owned(),
-            |acc, (var, val)| acc.replace(var, &val.to_string()),
+        let mut context = Context::default();
+        let modified_script_content = format!(
+            "{}\n{}\n{}\n{}",
+            "let button = {};",
+            "let fimage = {};",
+            script_content
+                .replace("document.getElementById('dlbutton')", "button")
+                .replace("document.getElementById('fimage')", "fimage"),
+            "button.href"
         );
-        let key = tinyexpr::interp(&expression)
-            .map_err(|err| Error::LinkComputationFailure { source: err })? as i64;
+        let path = context
+            .eval(modified_script_content)
+            .map_err(|_| Error::LinkComputationFailure)?
+            .to_string(&mut context)
+            .map_err(|_| Error::LinkComputationFailure)?;
+        let groups = PATH_REGEX
+            .captures(&*path)
+            .ok_or(Error::LinkGeneratorExtractionFailure)?;
 
         Ok(Self {
             domain: uri.host().ok_or(Error::DomainExtractionFailure)?.to_owned(),
@@ -141,7 +128,13 @@ impl File {
                 .ok_or(Error::FileIdExtractionFailure)?
                 .as_str()
                 .to_owned(),
-            key,
+            key: groups
+                .get(2)
+                .ok_or(Error::FileKeyExtractionFailure)?
+                .as_str()
+                .to_owned()
+                .parse()
+                .map_err(|_| Error::FileKeyExtractionFailure)?,
             name: percent_decode_str(
                 groups
                     .get(3)
@@ -182,11 +175,18 @@ impl Display for File {
 
 #[cfg(test)]
 mod tests {
+    use super::File;
     use hyper::body::HttpBody;
     use hyper::Client;
     use hyper_tls::HttpsConnector;
     use md5::Context;
     use regex::Regex;
+
+    fn match_direct_download_format(file: &File) -> bool {
+        Regex::new(r#"https://(?:w+\d+\.)?zippyshare\.com/d/[\w\d]+/\d+/DOWNLOAD"#)
+            .unwrap()
+            .is_match(&file.link())
+    }
 
     #[tokio::test]
     async fn file_link() {
@@ -197,11 +197,7 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(
-            Regex::new(r#"https://(?:w+\d+\.)?zippyshare\.com/d/[\w\d]+/\d+/DOWNLOAD"#)
-                .unwrap()
-                .is_match(&file.link())
-        );
+        assert!(match_direct_download_format(&file));
     }
 
     #[tokio::test]
@@ -230,5 +226,20 @@ mod tests {
             md5.compute().0,
             [111, 29, 61, 152, 64, 180, 174, 33, 189, 191, 48, 97, 160, 9, 91, 63],
         );
+    }
+
+    #[test]
+    fn old_formats() {
+        for format in [include_str!("../page_payloads/july_2022.html")] {
+            assert!(match_direct_download_format(
+                &File::parse(
+                    &"https://www3.zippyshare.com/v/CDCi2wVT/file.html"
+                        .parse()
+                        .unwrap(),
+                    format
+                )
+                .unwrap()
+            ));
+        }
     }
 }

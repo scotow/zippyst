@@ -35,3 +35,7 @@ https://www20.zippyshare.com/d/QW589nBO/26959/Gillette%20%2c%20the%20best%20a%20
 ### Algorithm changes
 
 If you find any link that may not work with this project, please open an issue to let me know, so I might try to support the new algorithm.
+
+### Disclaimer
+
+This project uses and may run script that are downloaded from the download page. Use it at your own risk. 
