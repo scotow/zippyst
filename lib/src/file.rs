@@ -20,9 +20,10 @@ use crate::error::Error;
 lazy_static! {
     static ref SCRIPT_REGEX: Regex =
         Regex::new(r#"(?s)<script type="text/javascript">(.+?)</script>"#)
-            .expect("cannot build script extracting regex");
-    static ref VARIABLE_REGEX: Regex = Regex::new(r#"var\s*(\w+)\s*=\s*([\d+\-*/%]+);?"#)
-        .expect("cannot build variable matching regex");
+            .expect("cannot build script extraction regex");
+    static ref OMG_SPAN_REGEX: Regex =
+        Regex::new(r#"<span id="omg"\s+class="(\d+)"\s(:?style=".*")?>\s*</span>"#)
+            .expect("cannot build span extraction regex");
     static ref PATH_REGEX: Regex =
         Regex::new(r#"/d/(\w+)/(\d+)/([/\w%.-]+)"#).expect("cannot build uri regex");
 }
@@ -41,7 +42,7 @@ impl File {
     pub async fn fetch_and_parse(uri: Uri) -> Result<Self, Error> {
         async fn fetch(uri: Uri) -> Result<Response<Body>, Error> {
             let https = HttpsConnector::new();
-            let client = Client::builder().build::<_, hyper::Body>(https);
+            let client = Client::builder().build::<_, Body>(https);
             let response = client
                 .get(uri)
                 .await
@@ -103,7 +104,7 @@ impl File {
         }?;
 
         let mut context = Context::default();
-        let modified_script_content = format!(
+        let mut modified_script_content = format!(
             "{}\n{}\n{}\n{}",
             "let button = {};",
             "let fimage = {};",
@@ -112,6 +113,19 @@ impl File {
                 .replace("document.getElementById('fimage')", "fimage"),
             "button.href"
         );
+
+        if script_content.contains("document.getElementById('omg').getAttribute('class')") {
+            modified_script_content = modified_script_content.replace(
+                "document.getElementById('omg').getAttribute('class')",
+                OMG_SPAN_REGEX
+                    .captures(page_content)
+                    .ok_or(Error::LinkComputationFailure)?
+                    .get(1)
+                    .ok_or(Error::LinkComputationFailure)?
+                    .as_str(),
+            )
+        }
+
         let path = context
             .eval(modified_script_content)
             .map_err(|_| Error::LinkComputationFailure)?
@@ -190,7 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_link() {
-        let file = super::File::fetch_and_parse(
+        let file = File::fetch_and_parse(
             "https://www3.zippyshare.com/v/CDCi2wVT/file.html"
                 .parse()
                 .unwrap(),
@@ -202,7 +216,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_checksum() {
-        let file = super::File::fetch_and_parse(
+        let file = File::fetch_and_parse(
             "https://www3.zippyshare.com/v/CDCi2wVT/file.html"
                 .parse()
                 .unwrap(),
@@ -230,7 +244,10 @@ mod tests {
 
     #[test]
     fn old_formats() {
-        for format in [include_str!("../page_payloads/july_2022.html")] {
+        for format in [
+            include_str!("../page_payloads/2022_07_18.html"),
+            include_str!("../page_payloads/2022_07_23.html"),
+        ] {
             assert!(match_direct_download_format(
                 &File::parse(
                     &"https://www3.zippyshare.com/v/CDCi2wVT/file.html"

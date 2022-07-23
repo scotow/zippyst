@@ -1,6 +1,6 @@
 [package]
 name = "zippyst"
-version = "4.0.0"
+version = "4.0.1"
 authors = ["Scotow <contact@scotow.com>"]
 edition = "2021"
 license = "MIT"
