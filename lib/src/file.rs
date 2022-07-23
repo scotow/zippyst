@@ -1,7 +1,9 @@
-use boa::Context;
-use std::fmt::{Display, Formatter};
-use std::str;
+use std::{
+    fmt::{Display, Formatter},
+    str,
+};
 
+use boa::Context;
 use http::Uri;
 #[cfg(feature = "fetch")]
 use hyper::body::HttpBody;
@@ -189,12 +191,12 @@ impl Display for File {
 
 #[cfg(test)]
 mod tests {
-    use super::File;
-    use hyper::body::HttpBody;
-    use hyper::Client;
+    use hyper::{body::HttpBody, Client};
     use hyper_tls::HttpsConnector;
     use md5::Context;
     use regex::Regex;
+
+    use super::File;
 
     fn match_direct_download_format(file: &File) -> bool {
         Regex::new(r#"https://(?:w+\d+\.)?zippyshare\.com/d/[\w\d]+/\d+/DOWNLOAD"#)
