@@ -6,4 +6,4 @@ edition = "2021"
 
 [dependencies]
 zippyst = { path = "../lib", features = ["fetch"] }
-tokio = { version = "1.20.3", default-features = false, features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.20.4", default-features = false, features = ["macros", "rt-multi-thread"] }
