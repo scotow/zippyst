@@ -3,7 +3,7 @@ use std::{
     str,
 };
 
-use boa::Context;
+use boa_engine::Context;
 use http::Uri;
 #[cfg(feature = "fetch")]
 use hyper::body::HttpBody;
@@ -93,17 +93,26 @@ impl File {
     }
 
     pub fn parse(uri: &Uri, page_content: &str) -> Result<Self, Error> {
-        let script_content = {
-            let mut content = Err(Error::ScriptNotFound);
-            for cap in SCRIPT_REGEX.captures_iter(page_content) {
-                let inner = cap.get(1).ok_or(Error::ScriptNotFound)?.as_str();
-                if inner.contains("document.getElementById('dlbutton')") {
-                    content = Ok(inner);
-                    break;
-                }
-            }
-            content
-        }?;
+        let scripts = SCRIPT_REGEX
+            .captures_iter(page_content)
+            .filter_map(|script| {
+                let inner = script.get(1)?.as_str().trim();
+                inner
+                    .contains("document.getElementById('dlbutton')")
+                    .then_some(inner)
+            })
+            .collect::<Vec<_>>();
+        if scripts.is_empty() {
+            return Err(Error::ScriptNotFound);
+        }
+
+        let script_content = scripts
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| (!scripts[i + 1..].contains(s)).then_some(s))
+            .copied()
+            .collect::<Vec<_>>()
+            .join("\n");
 
         let mut context = Context::default();
         let mut modified_script_content = format!(
@@ -249,6 +258,7 @@ mod tests {
         for format in [
             include_str!("../page_payloads/2022_07_18.html"),
             include_str!("../page_payloads/2022_07_23.html"),
+            include_str!("../page_payloads/2023_02_28.html"),
         ] {
             assert!(match_direct_download_format(
                 &File::parse(
