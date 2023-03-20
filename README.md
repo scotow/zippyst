@@ -6,6 +6,8 @@
 
 Extract direct download link from a [zippyshare.com](https://www.zippyshare.com) page. 
 
+## ⚠️ Following Zippyshare's March 19, 2023 [announcement](https://blog.zippyshare.com/?p=1211)  of closing their services, this project will not receive any new development and has been archived. ⚠️ 
+
 ### Usage
 
 ```sh
